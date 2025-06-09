@@ -1,26 +1,23 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const taskForm = document.getElementById("task-form");
-    const taskInput = document.getElementById("task-input");
-    const descInput = document.getElementById("task-description");
-    const dateInput = document.getElementById("task-date");
-    const prioritySelect = document.getElementById("priority-select");
-    const taskList = document.getElementById("task-list");
+  const taskForm = document.getElementById("task-form");
+  const taskInput = document.getElementById("task-input");
+  const descInput = document.getElementById("task-description");
+  const dateInput = document.getElementById("task-date");
+  const prioritySelect = document.getElementById("priority-select");
+  const taskList = document.getElementById("task-list");
 
-    // Load tasks from localStorage or empty array
-    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+  let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
 
-    // Save tasks array to localStorage
-    function saveTasks() {
-        localStorage.setItem("tasks", JSON.stringify(tasks));
-    }
+  function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }
 
-    // Create DOM element for a task and attach listeners
-    function createTaskElement(task, index) {
-        const li = document.createElement("li");
-        li.classList.add("task-item");
-        li.dataset.index = index;
+  function createTaskElement(task, index) {
+    const li = document.createElement("li");
+    li.classList.add("task-item");
+    li.dataset.index = index;
 
-        li.innerHTML = `
+    li.innerHTML = `
       <div class="task-card">
         <div class="task-header">
           <label>
@@ -42,76 +39,154 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="progress-bar-inner" style="width: ${task.progress}%" data-progress="${task.progress}"></div>
         </div>
         <div class="task-actions">
-          <button class="edit-btn" disabled>Edit</button>
+          <button class="edit-btn">Edit</button>
           <button class="delete-btn">Delete</button>
         </div>
       </div>
     `;
 
-        // Progress bar elements
-        const checkbox = li.querySelector(".task-checkbox");
-        const progressBarInner = li.querySelector(".progress-bar-inner");
-        const progressPercent = li.querySelector(".task-progress-percent");
-        const statusSpan = li.querySelector(".task-status");
+    const checkbox = li.querySelector(".task-checkbox");
+    const progressBarInner = li.querySelector(".progress-bar-inner");
+    const progressPercent = li.querySelector(".task-progress-percent");
+    const statusSpan = li.querySelector(".task-status");
+    const editBtn = li.querySelector(".edit-btn");
+    const deleteBtn = li.querySelector(".delete-btn");
+    const titleSpan = li.querySelector(".task-title");
+    const descP = li.querySelector(".task-description");
+    const dateSpan = li.querySelector(".task-date");
+    const prioritySpan = li.querySelector(".task-priority");
 
-        // Checkbox click increments progress by 10% max 100%
-        checkbox.addEventListener("click", () => {
-            if (task.progress < 100) {
-                task.progress += 10;
-                if (task.progress > 100) task.progress = 100;
-                progressBarInner.style.width = task.progress + "%";
-                progressBarInner.dataset.progress = task.progress;
-                progressPercent.textContent = task.progress + "%";
-                statusSpan.textContent = task.progress === 100 ? "Completed" : "Pending";
-                saveTasks();
-            }
-            // Prevent unchecking after full progress
-            if (task.progress === 100) checkbox.checked = true;
-        });
-
-        // Delete button removes task from DOM and array
-        li.querySelector(".delete-btn").addEventListener("click", () => {
-            tasks.splice(index, 1);
-            saveTasks();
-            renderTasks();
-        });
-
-        return li;
-    }
-
-    // Clear and render all tasks from array
-    function renderTasks() {
-        taskList.innerHTML = "";
-        tasks.forEach((task, i) => {
-            taskList.appendChild(createTaskElement(task, i));
-        });
-    }
-
-    // Add new task handler
-    taskForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-
-        const title = taskInput.value.trim();
-        const description = descInput.value.trim();
-        const date = dateInput.value;
-        const priority = prioritySelect.value;
-
-        if (!title || !description || !date || !priority) return;
-
-        tasks.push({
-            title,
-            description,
-            date,
-            priority,
-            progress: 0,
-        });
-
+    // Progress update on checkbox click
+    checkbox.addEventListener("click", () => {
+      if (task.progress < 100) {
+        task.progress += 10;
+        if (task.progress > 100) task.progress = 100;
+        progressBarInner.style.width = task.progress + "%";
+        progressBarInner.dataset.progress = task.progress;
+        progressPercent.textContent = task.progress + "%";
+        statusSpan.textContent = task.progress === 100 ? "Completed" : "Pending";
         saveTasks();
-        renderTasks();
-
-        taskForm.reset();
+      }
+      if (task.progress === 100) checkbox.checked = true;
     });
 
-    // Initial render
+    // Delete task
+    deleteBtn.addEventListener("click", () => {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    });
+
+    // Edit task
+    let isEditing = false;
+    editBtn.addEventListener("click", () => {
+      if (!isEditing) {
+        // Enter edit mode - swap spans/p/labels with inputs/select
+        const titleInput = document.createElement("input");
+        titleInput.type = "text";
+        titleInput.value = task.title;
+        titleInput.classList.add("edit-title");
+
+        const descInputEl = document.createElement("input");
+        descInputEl.type = "text";
+        descInputEl.value = task.description;
+        descInputEl.classList.add("edit-desc");
+
+        const dateInputEl = document.createElement("input");
+        dateInputEl.type = "date";
+        dateInputEl.value = task.date;
+        dateInputEl.classList.add("edit-date");
+
+        const prioritySelectEl = document.createElement("select");
+        ["High", "Medium", "Low"].forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p;
+          if (p === task.priority) opt.selected = true;
+          prioritySelectEl.appendChild(opt);
+        });
+        prioritySelectEl.classList.add("edit-priority");
+
+        titleSpan.replaceWith(titleInput);
+        descP.replaceWith(descInputEl);
+        dateSpan.replaceWith(dateInputEl);
+        prioritySpan.replaceWith(prioritySelectEl);
+
+        editBtn.textContent = "Save";
+        isEditing = true;
+      } else {
+        // Save edits back to task object
+        const titleInput = li.querySelector(".edit-title");
+        const descInputEl = li.querySelector(".edit-desc");
+        const dateInputEl = li.querySelector(".edit-date");
+        const prioritySelectEl = li.querySelector(".edit-priority");
+
+        task.title = titleInput.value.trim() || task.title;
+        task.description = descInputEl.value.trim() || task.description;
+        task.date = dateInputEl.value || task.date;
+        task.priority = prioritySelectEl.value || task.priority;
+
+        // Recreate static elements
+        const newTitleSpan = document.createElement("span");
+        newTitleSpan.classList.add("task-title");
+        newTitleSpan.textContent = task.title;
+
+        const newDescP = document.createElement("p");
+        newDescP.classList.add("task-description");
+        newDescP.textContent = task.description;
+
+        const newDateSpan = document.createElement("span");
+        newDateSpan.classList.add("task-date");
+        newDateSpan.textContent = "Due: " + task.date;
+
+        const newPrioritySpan = document.createElement("span");
+        newPrioritySpan.classList.add("task-priority");
+        newPrioritySpan.textContent = task.priority;
+
+        titleInput.replaceWith(newTitleSpan);
+        descInputEl.replaceWith(newDescP);
+        dateInputEl.replaceWith(newDateSpan);
+        prioritySelectEl.replaceWith(newPrioritySpan);
+
+        editBtn.textContent = "Edit";
+        isEditing = false;
+
+        saveTasks();
+      }
+    });
+
+    return li;
+  }
+
+  function renderTasks() {
+    taskList.innerHTML = "";
+    tasks.forEach((task, i) => {
+      taskList.appendChild(createTaskElement(task, i));
+    });
+  }
+
+  taskForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const title = taskInput.value.trim();
+    const description = descInput.value.trim();
+    const date = dateInput.value;
+    const priority = prioritySelect.value;
+
+    if (!title || !description || !date || !priority) return;
+
+    tasks.push({
+      title,
+      description,
+      date,
+      priority,
+      progress: 0,
+    });
+
+    saveTasks();
     renderTasks();
+    taskForm.reset();
+  });
+
+  renderTasks();
 });
